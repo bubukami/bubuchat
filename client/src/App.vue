@@ -7,12 +7,12 @@
           <h1>BubuChat</h1>
         </div>
         <p class="subtitle">轻量级实时聊天</p>
-        
+
         <div class="avatar-preview" v-if="avatarPreview">
           <img :src="avatarPreview" alt="头像预览" />
           <button @click="clearAvatar" class="clear-btn">×</button>
         </div>
-        
+
         <form @submit.prevent="joinChat">
           <div class="avatar-upload">
             <label for="avatarInput" class="upload-label">
@@ -27,7 +27,7 @@
               ref="avatarInput"
             />
           </div>
-          
+
           <input
             v-model="username"
             placeholder="输入你的昵称"
@@ -36,11 +36,11 @@
             autofocus
             class="username-input"
           />
-          
+
           <div class="theme-selector">
             <span class="theme-label">主题：</span>
-            <div 
-              v-for="theme in themes" 
+            <div
+              v-for="theme in themes"
               :key="theme.id"
               class="theme-option"
               :class="{ active: selectedTheme === theme.id }"
@@ -50,7 +50,7 @@
               {{ theme.name }}
             </div>
           </div>
-          
+
           <button type="submit" class="join-btn">
             开始聊天
             <span class="arrow">→</span>
@@ -59,7 +59,11 @@
       </div>
     </div>
 
-    <div v-else class="chat-screen" :style="{ backgroundImage: customBackground }">
+    <div
+      v-else
+      class="chat-screen"
+      :style="{ backgroundImage: customBackground }"
+    >
       <div class="sidebar">
         <div class="sidebar-header">
           <div class="user-info-mini">
@@ -73,12 +77,12 @@
           </div>
           <button @click="showSettings = true" class="settings-btn">⚙️</button>
         </div>
-        
+
         <div class="online-count">
           <span class="count">{{ users.length }}</span>
           <span class="label">人在线</span>
         </div>
-        
+
         <div class="user-list">
           <div
             v-for="user in users"
@@ -91,7 +95,9 @@
             </div>
             <div class="user-details">
               <span class="user-name">{{ user.username }}</span>
-              <span v-if="user.typing" class="typing-indicator">正在输入...</span>
+              <span v-if="user.typing" class="typing-indicator"
+                >正在输入...</span
+              >
             </div>
           </div>
         </div>
@@ -105,13 +111,18 @@
             class="message"
             :class="{ 'my-message': message.userId === myUserId }"
           >
-            <div class="message-avatar" :style="{ backgroundImage: message.avatar }">
+            <div
+              class="message-avatar"
+              :style="{ backgroundImage: message.avatar }"
+            >
               {{ message.username.charAt(0).toUpperCase() }}
             </div>
             <div class="message-content">
               <div class="message-meta">
                 <span class="message-username">{{ message.username }}</span>
-                <span class="message-time">{{ formatTime(message.timestamp) }}</span>
+                <span class="message-time">{{
+                  formatTime(message.timestamp)
+                }}</span>
               </div>
               <div class="message-bubble">{{ message.content }}</div>
             </div>
@@ -128,8 +139,8 @@
                 @keydown.enter.prevent="sendMessage"
                 class="message-input"
               />
-              <button 
-                type="button" 
+              <button
+                type="button"
                 @click="showEmojiPicker = !showEmojiPicker"
                 class="emoji-btn"
                 title="表情"
@@ -137,14 +148,18 @@
                 😊
               </button>
             </div>
-            <button type="submit" class="send-btn" :disabled="!newMessage.trim()">
+            <button
+              type="submit"
+              class="send-btn"
+              :disabled="!newMessage.trim()"
+            >
               发送
             </button>
           </form>
-          
+
           <div v-if="showEmojiPicker" class="emoji-picker">
-            <span 
-              v-for="emoji in emojis" 
+            <span
+              v-for="emoji in emojis"
               :key="emoji"
               @click="insertEmoji(emoji)"
               class="emoji-item"
@@ -156,13 +171,17 @@
       </div>
     </div>
 
-    <div v-if="showSettings" class="settings-modal" @click.self="showSettings = false">
+    <div
+      v-if="showSettings"
+      class="settings-modal"
+      @click.self="showSettings = false"
+    >
       <div class="settings-content" @click.stop>
         <div class="settings-header">
           <h3>个性化设置</h3>
           <button @click="showSettings = false" class="close-btn">×</button>
         </div>
-        
+
         <div class="settings-section">
           <h4>🎨 背景图片</h4>
           <div class="background-preview" v-if="customBackground">
@@ -178,24 +197,20 @@
             />
           </label>
         </div>
-        
+
         <div class="settings-section">
           <h4>👤 更换头像</h4>
           <label class="upload-btn">
             <span>上传新头像</span>
-            <input
-              type="file"
-              accept="image/*"
-              @change="handleAvatarUpload"
-            />
+            <input type="file" accept="image/*" @change="handleAvatarUpload" />
           </label>
         </div>
-        
+
         <div class="settings-section">
           <h4>🎨 主题颜色</h4>
           <div class="theme-grid">
-            <div 
-              v-for="theme in themes" 
+            <div
+              v-for="theme in themes"
               :key="theme.id"
               class="theme-card"
               :class="{ active: selectedTheme === theme.id }"
@@ -212,33 +227,80 @@
 </template>
 
 <script setup>
-import { ref, nextTick, onMounted, onUnmounted } from 'vue';
-import { io } from 'socket.io-client';
+import { ref, nextTick, onMounted, onUnmounted } from "vue";
+import { io } from "socket.io-client";
 
-const username = ref('');
+const username = ref("");
 const joined = ref(false);
-const myUserId = ref('');
-const myAvatar = ref('');
-const avatarPreview = ref('');
+const myUserId = ref("");
+const myAvatar = ref("");
+const avatarPreview = ref("");
 const users = ref([]);
 const messages = ref([]);
-const newMessage = ref('');
+const newMessage = ref("");
 const messagesContainer = ref(null);
 const showSettings = ref(false);
 const showEmojiPicker = ref(false);
-const customBackground = ref('');
-const selectedTheme = ref('purple');
+const customBackground = ref("");
+const selectedTheme = ref("purple");
 
 const themes = [
-  { id: 'purple', name: '紫罗兰', gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
-  { id: 'blue', name: '海洋蓝', gradient: 'linear-gradient(135deg, #66a6ff 0%, #76c7ff 100%)' },
-  { id: 'green', name: '薄荷绿', gradient: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)' },
-  { id: 'pink', name: '樱花粉', gradient: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)' },
-  { id: 'orange', name: '日落橙', gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' },
-  { id: 'dark', name: '暗夜黑', gradient: 'linear-gradient(135deg, #434343 0%, #000000 100%)' },
+  {
+    id: "purple",
+    name: "紫罗兰",
+    gradient: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+  },
+  {
+    id: "blue",
+    name: "海洋蓝",
+    gradient: "linear-gradient(135deg, #66a6ff 0%, #76c7ff 100%)",
+  },
+  {
+    id: "green",
+    name: "薄荷绿",
+    gradient: "linear-gradient(135deg, #11998e 0%, #38ef7d 100%)",
+  },
+  {
+    id: "pink",
+    name: "樱花粉",
+    gradient: "linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)",
+  },
+  {
+    id: "orange",
+    name: "日落橙",
+    gradient: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+  },
+  {
+    id: "dark",
+    name: "暗夜黑",
+    gradient: "linear-gradient(135deg, #434343 0%, #000000 100%)",
+  },
 ];
 
-const emojis = ['😀', '😂', '😍', '🥰', '😎', '🎉', '🎊', '🌈', '🔥', '❤️', '💯', '👍', '👎', '✨', '💫', '🚀', '💬', '👋', '🙏', '🎁', '🌟', '⭐'];
+const emojis = [
+  "😀",
+  "😂",
+  "😍",
+  "🥰",
+  "😎",
+  "🎉",
+  "🎊",
+  "🌈",
+  "🔥",
+  "❤️",
+  "💯",
+  "👍",
+  "👎",
+  "✨",
+  "💫",
+  "🚀",
+  "💬",
+  "👋",
+  "🙏",
+  "🎁",
+  "🌟",
+  "⭐",
+];
 
 let socket = null;
 let typingTimeout = null;
@@ -256,8 +318,8 @@ function handleAvatarUpload(event) {
 }
 
 function clearAvatar() {
-  avatarPreview.value = '';
-  myAvatar.value = '';
+  avatarPreview.value = "";
+  myAvatar.value = "";
 }
 
 function handleBackgroundUpload(event) {
@@ -272,14 +334,17 @@ function handleBackgroundUpload(event) {
 }
 
 function clearBackground() {
-  customBackground.value = '';
+  customBackground.value = "";
 }
 
 function selectTheme(themeId) {
   selectedTheme.value = themeId;
-  const theme = themes.find(t => t.id === themeId);
+  const theme = themes.find((t) => t.id === themeId);
   if (theme) {
-    document.documentElement.style.setProperty('--primary-gradient', theme.gradient);
+    document.documentElement.style.setProperty(
+      "--primary-gradient",
+      theme.gradient
+    );
   }
 }
 
@@ -289,17 +354,17 @@ function joinChat() {
   myUserId.value = generateUserId();
   socket = io();
 
-  socket.on('connect', () => {
-    console.log('已连接到服务器');
-    socket.emit('join', {
+  socket.on("connect", () => {
+    console.log("已连接到服务器");
+    socket.emit("join", {
       userId: myUserId.value,
       username: username.value,
       avatar: myAvatar.value,
     });
   });
 
-  socket.on('joined', (data) => {
-    console.log('加入成功', data);
+  socket.on("joined", (data) => {
+    console.log("加入成功", data);
     joined.value = true;
     users.value = data.users || [];
     messages.value = data.messages || [];
@@ -308,8 +373,8 @@ function joinChat() {
     });
   });
 
-  socket.on('user_joined', (data) => {
-    console.log('新用户加入', data);
+  socket.on("user_joined", (data) => {
+    console.log("新用户加入", data);
     users.value.push({
       userId: data.userId,
       username: data.username,
@@ -317,42 +382,42 @@ function joinChat() {
     });
   });
 
-  socket.on('new_message', (data) => {
-    console.log('收到消息', data);
+  socket.on("new_message", (data) => {
+    console.log("收到消息", data);
     messages.value.push(data);
     nextTick(() => {
       scrollToBottom();
     });
   });
 
-  socket.on('user_typing', (data) => {
-    const user = users.value.find(u => u.userId === data.userId);
+  socket.on("user_typing", (data) => {
+    const user = users.value.find((u) => u.userId === data.userId);
     if (user) {
       user.typing = true;
     }
   });
 
-  socket.on('user_stop_typing', (data) => {
-    const user = users.value.find(u => u.userId === data.userId);
+  socket.on("user_stop_typing", (data) => {
+    const user = users.value.find((u) => u.userId === data.userId);
     if (user) {
       user.typing = false;
     }
   });
 
-  socket.on('user_left', (data) => {
-    console.log('用户离开', data);
-    users.value = users.value.filter(u => u.userId !== data.userId);
+  socket.on("user_left", (data) => {
+    console.log("用户离开", data);
+    users.value = users.value.filter((u) => u.userId !== data.userId);
   });
 
-  socket.on('disconnect', () => {
-    console.log('与服务器断开连接');
+  socket.on("disconnect", () => {
+    console.log("与服务器断开连接");
   });
 }
 
 function sendMessage() {
   if (!newMessage.value.trim()) return;
 
-  socket.emit('send_message', {
+  socket.emit("send_message", {
     userId: myUserId.value,
     username: username.value,
     avatar: myAvatar.value,
@@ -360,12 +425,12 @@ function sendMessage() {
   });
 
   stopTyping();
-  newMessage.value = '';
+  newMessage.value = "";
 }
 
 function handleInput() {
   if (newMessage.value.trim()) {
-    socket.emit('typing', {
+    socket.emit("typing", {
       userId: myUserId.value,
       username: username.value,
     });
@@ -378,7 +443,7 @@ function handleInput() {
 }
 
 function stopTyping() {
-  socket.emit('stop_typing', {
+  socket.emit("stop_typing", {
     userId: myUserId.value,
     username: username.value,
   });
@@ -397,15 +462,15 @@ function scrollToBottom() {
 
 function formatTime(timestamp) {
   const date = new Date(timestamp);
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
 function generateUserId() {
-  return 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  return "user_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
 }
 
 onMounted(() => {
-  const savedTheme = localStorage.getItem('bubuchat_theme');
+  const savedTheme = localStorage.getItem("bubuchat_theme");
   if (savedTheme) {
     selectTheme(savedTheme);
     selectedTheme.value = savedTheme;
@@ -443,7 +508,8 @@ onUnmounted(() => {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Microsoft YaHei", sans-serif;
   background: var(--primary-gradient);
   min-height: 100vh;
 }
@@ -497,7 +563,8 @@ body {
 }
 
 @keyframes bounce {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0);
   }
   50% {
