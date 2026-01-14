@@ -287,8 +287,7 @@ function joinChat() {
   if (!username.value.trim()) return;
 
   myUserId.value = generateUserId();
-  const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000';
-  socket = io(socketUrl);
+  socket = io();
 
   socket.on('connect', () => {
     console.log('已连接到服务器');
