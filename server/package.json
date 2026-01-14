@@ -1,0 +1,13 @@
+{
+  "name": "bubuchat-server",
+  "version": "1.0.0",
+  "description": "BubuChat 轻量级后端服务",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js"
+  },
+  "dependencies": {
+    "socket.io": "^4.8.3"
+  }
+}
