@@ -37,21 +37,7 @@
             class="username-input"
           />
 
-          <div class="theme-selector">
-            <span class="theme-label">主题：</span>
-            <div
-              v-for="theme in themes"
-              :key="theme.id"
-              class="theme-option"
-              :class="{ active: selectedTheme === theme.id }"
-              :style="{ background: theme.gradient }"
-              @click="selectTheme(theme.id)"
-            >
-              {{ theme.name }}
-            </div>
-          </div>
-
-          <button type="submit" class="join-btn">
+          <button type="submit" class="join-btn" :disabled="isJoining">
             开始聊天
             <span class="arrow">→</span>
           </button>
@@ -64,26 +50,43 @@
       class="chat-screen"
       :style="{ backgroundImage: customBackground }"
     >
-      <div class="sidebar">
+      <div class="sidebar" :class="{ collapsed: sidebarCollapsed }">
         <div class="sidebar-header">
           <div class="user-info-mini">
             <div class="mini-avatar" :style="{ backgroundImage: myAvatar }">
-              {{ username.charAt(0).toUpperCase() }}
+              <span v-if="!myAvatar" class="avatar-text">
+                {{ username.charAt(0).toUpperCase() }}
+              </span>
             </div>
-            <div>
+            <div v-if="!sidebarCollapsed">
               <h2>{{ username }}</h2>
               <span class="user-id">{{ myUserId }}</span>
             </div>
           </div>
-          <button @click="showSettings = true" class="settings-btn">⚙️</button>
+          <div class="header-buttons">
+            <button
+              @click="toggleSidebar"
+              class="collapse-btn"
+              :title="sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'"
+            >
+              {{ sidebarCollapsed ? "→" : "←" }}
+            </button>
+            <button
+              @click="showSettings = true"
+              class="settings-btn"
+              v-if="!sidebarCollapsed"
+            >
+              ⚙️
+            </button>
+          </div>
         </div>
 
-        <div class="online-count">
+        <div class="online-count" v-if="!sidebarCollapsed">
           <span class="count">{{ users.length }}</span>
           <span class="label">人在线</span>
         </div>
 
-        <div class="user-list">
+        <div class="user-list" v-if="!sidebarCollapsed">
           <div
             v-for="user in users"
             :key="user.userId"
@@ -91,7 +94,9 @@
             :class="{ active: user.userId === myUserId }"
           >
             <div class="user-avatar" :style="{ backgroundImage: user.avatar }">
-              {{ user.username.charAt(0).toUpperCase() }}
+              <span v-if="!user.avatar" class="avatar-text">
+                {{ user.username.charAt(0).toUpperCase() }}
+              </span>
             </div>
             <div class="user-details">
               <span class="user-name">{{ user.username }}</span>
@@ -127,7 +132,9 @@
                 class="message-avatar"
                 :style="{ backgroundImage: message.avatar }"
               >
-                {{ message.username.charAt(0).toUpperCase() }}
+                <span v-if="!message.avatar" class="avatar-text">
+                  {{ message.username.charAt(0).toUpperCase() }}
+                </span>
               </div>
               <div class="message-content">
                 <div class="message-meta">
@@ -289,19 +296,9 @@
         </div>
 
         <div class="settings-section">
-          <h4>🎨 主题颜色</h4>
-          <div class="theme-grid">
-            <div
-              v-for="theme in themes"
-              :key="theme.id"
-              class="theme-card"
-              :class="{ active: selectedTheme === theme.id }"
-              :style="{ background: theme.gradient }"
-              @click="selectTheme(theme.id)"
-            >
-              <div class="theme-name">{{ theme.name }}</div>
-            </div>
-          </div>
+          <h4>🔄 重置用户ID</h4>
+          <p class="settings-description">当前用户ID: {{ myUserId }}</p>
+          <button @click="resetUserId" class="reset-btn">重置用户ID</button>
         </div>
       </div>
     </div>
@@ -327,44 +324,13 @@ const customBackground = ref("");
 const selectedTheme = ref("purple");
 const uploadProgress = ref(0);
 const isUploading = ref(false);
+const isJoining = ref(false); // 添加加入状态
+const sidebarCollapsed = ref(false); // 侧边栏收起状态
 
 // 消息分页相关变量
 const messagesPerPage = ref(50); // 每页显示的消息数量
 const displayedMessages = ref([]); // 当前显示的消息
 const showLoadMore = ref(false); // 是否显示加载更多按钮
-
-const themes = [
-  {
-    id: "purple",
-    name: "紫罗兰",
-    gradient: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-  },
-  {
-    id: "blue",
-    name: "海洋蓝",
-    gradient: "linear-gradient(135deg, #66a6ff 0%, #76c7ff 100%)",
-  },
-  {
-    id: "green",
-    name: "薄荷绿",
-    gradient: "linear-gradient(135deg, #11998e 0%, #38ef7d 100%)",
-  },
-  {
-    id: "pink",
-    name: "樱花粉",
-    gradient: "linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)",
-  },
-  {
-    id: "orange",
-    name: "日落橙",
-    gradient: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
-  },
-  {
-    id: "dark",
-    name: "暗夜黑",
-    gradient: "linear-gradient(135deg, #434343 0%, #000000 100%)",
-  },
-];
 
 const emojis = [
   "😀",
@@ -411,6 +377,18 @@ function clearAvatar() {
   myAvatar.value = "";
 }
 
+function toggleSidebar() {
+  sidebarCollapsed.value = !sidebarCollapsed.value;
+}
+
+function resetUserId() {
+  if (confirm("确定要重置用户ID吗？这将创建一个新的用户身份。")) {
+    localStorage.removeItem("bubuchat_user_id");
+    alert("用户ID已重置，请刷新页面重新加入聊天");
+    location.reload();
+  }
+}
+
 function handleBackgroundUpload(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -426,100 +404,128 @@ function clearBackground() {
   customBackground.value = "";
 }
 
-function selectTheme(themeId) {
-  selectedTheme.value = themeId;
-  const theme = themes.find((t) => t.id === themeId);
-  if (theme) {
-    document.documentElement.style.setProperty(
-      "--primary-gradient",
-      theme.gradient
-    );
-  }
-}
-
 function joinChat() {
-  if (!username.value.trim()) return;
+  if (!username.value.trim()) {
+    alert("请输入昵称");
+    return;
+  }
 
+  isJoining.value = true;
   myUserId.value = generateUserId();
-  socket = io();
 
-  socket.on("connect", () => {
-    console.log("已连接到服务器");
-    socket.emit("join", {
-      userId: myUserId.value,
-      username: username.value,
-      avatar: myAvatar.value,
+  try {
+    const socketUrl =
+      import.meta.env.VITE_SOCKET_URL || "http://localhost:3000";
+    console.log("尝试连接到服务器:", socketUrl);
+
+    socket = io(socketUrl, {
+      transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 10000,
     });
-  });
 
-  socket.on("joined", (data) => {
-    console.log("加入成功", data);
-    joined.value = true;
-    users.value = data.users || [];
-    messages.value = data.messages || [];
-
-    // 初始化显示的消息，默认显示最新的50条
-    displayedMessages.value = messages.value.slice(-messagesPerPage.value);
-    showLoadMore.value = messages.value.length > messagesPerPage.value;
-
-    nextTick(() => {
-      scrollToBottom();
+    socket.on("connect", () => {
+      console.log("已连接到服务器");
+      socket.emit("join", {
+        userId: myUserId.value,
+        username: username.value,
+        avatar: myAvatar.value,
+      });
     });
-  });
 
-  socket.on("user_joined", (data) => {
-    console.log("新用户加入", data);
-    users.value.push({
-      userId: data.userId,
-      username: data.username,
-      avatar: data.avatar,
-    });
-  });
+    socket.on("joined", (data) => {
+      console.log("加入成功", data);
+      joined.value = true;
+      isJoining.value = false;
+      users.value = data.users || [];
+      messages.value = data.messages || [];
 
-  socket.on("new_message", (data) => {
-    console.log("收到消息", data);
-    messages.value.push(data);
+      // 初始化显示的消息，默认显示最新的50条
+      displayedMessages.value = messages.value.slice(-messagesPerPage.value);
+      showLoadMore.value = messages.value.length > messagesPerPage.value;
 
-    // 如果当前显示的是最新消息（滚动到底部），则添加到显示列表
-    const container = messagesContainer.value;
-    const isAtBottom =
-      container &&
-      container.scrollTop + container.clientHeight >=
-        container.scrollHeight - 10;
-
-    if (isAtBottom || displayedMessages.value.length < messagesPerPage.value) {
-      displayedMessages.value.push(data);
-    }
-
-    nextTick(() => {
-      if (isAtBottom) {
+      nextTick(() => {
         scrollToBottom();
+      });
+    });
+
+    socket.on("connect_error", (error) => {
+      console.error("连接错误:", error);
+      console.error("错误详情:", error.description);
+      console.error("错误类型:", error.type);
+      alert(
+        `连接服务器失败: ${
+          error.message || error.description || "请检查网络连接"
+        }`
+      );
+      isJoining.value = false;
+    });
+
+    socket.on("disconnect", (reason) => {
+      console.log("与服务器断开连接:", reason);
+      alert(`与服务器断开连接: ${reason}`);
+      isJoining.value = false;
+    });
+
+    socket.on("user_joined", (data) => {
+      console.log("新用户加入", data);
+      users.value.push({
+        userId: data.userId,
+        username: data.username,
+        avatar: data.avatar,
+      });
+    });
+
+    socket.on("new_message", (data) => {
+      console.log("收到消息", data);
+      messages.value.push(data);
+
+      // 如果当前显示的是最新消息（滚动到底部），则添加到显示列表
+      const container = messagesContainer.value;
+      const isAtBottom =
+        container &&
+        container.scrollTop + container.clientHeight >=
+          container.scrollHeight - 10;
+
+      if (
+        isAtBottom ||
+        displayedMessages.value.length < messagesPerPage.value
+      ) {
+        displayedMessages.value.push(data);
+      }
+
+      nextTick(() => {
+        if (isAtBottom) {
+          scrollToBottom();
+        }
+      });
+    });
+
+    socket.on("user_typing", (data) => {
+      const user = users.value.find((u) => u.userId === data.userId);
+      if (user) {
+        user.typing = true;
       }
     });
-  });
 
-  socket.on("user_typing", (data) => {
-    const user = users.value.find((u) => u.userId === data.userId);
-    if (user) {
-      user.typing = true;
-    }
-  });
+    socket.on("user_stop_typing", (data) => {
+      const user = users.value.find((u) => u.userId === data.userId);
+      if (user) {
+        user.typing = false;
+      }
+    });
 
-  socket.on("user_stop_typing", (data) => {
-    const user = users.value.find((u) => u.userId === data.userId);
-    if (user) {
-      user.typing = false;
-    }
-  });
-
-  socket.on("user_left", (data) => {
-    console.log("用户离开", data);
-    users.value = users.value.filter((u) => u.userId !== data.userId);
-  });
-
-  socket.on("disconnect", () => {
-    console.log("与服务器断开连接");
-  });
+    socket.on("user_left", (data) => {
+      console.log("用户离开", data);
+      users.value = users.value.filter((u) => u.userId !== data.userId);
+    });
+  } catch (error) {
+    console.error("初始化Socket失败:", error);
+    alert("初始化聊天失败，请刷新页面重试");
+    isJoining.value = false;
+  }
 }
 
 function sendMessage() {
@@ -530,6 +536,7 @@ function sendMessage() {
     username: username.value,
     avatar: myAvatar.value,
     content: newMessage.value,
+    type: "text",
   });
 
   stopTyping();
@@ -685,15 +692,22 @@ function handleMessagesScroll() {
 }
 
 function generateUserId() {
-  return "user_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
+  // 检查localStorage中是否已有UID
+  let userId = localStorage.getItem("bubuchat_user_id");
+
+  // 如果没有，生成新的UID并保存
+  if (!userId) {
+    userId =
+      "user_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem("bubuchat_user_id", userId);
+  }
+
+  return userId;
 }
 
 onMounted(() => {
-  const savedTheme = localStorage.getItem("bubuchat_theme");
-  if (savedTheme) {
-    selectTheme(savedTheme);
-    selectedTheme.value = savedTheme;
-  }
+  // 移除了不存在的selectTheme函数调用
+  // 如果需要主题功能，可以后续添加
 });
 
 onUnmounted(() => {
@@ -705,7 +719,6 @@ onUnmounted(() => {
 
 <style>
 :root {
-  --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   --primary-color: #667eea;
   --text-color: #333;
   --bg-color: #fff;
@@ -729,7 +742,7 @@ onUnmounted(() => {
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
     "Microsoft YaHei", sans-serif;
-  background: var(--primary-gradient);
+  background: var(--primary-color);
   min-height: 100vh;
 }
 
@@ -747,7 +760,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--primary-gradient);
+  background: var(--primary-color);
 }
 
 .login-box {
@@ -796,10 +809,7 @@ body {
   font-size: 36px;
   color: var(--text-color);
   margin-bottom: 8px;
-  background: var(--primary-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--primary-color);
 }
 
 .subtitle {
@@ -890,41 +900,9 @@ body {
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-.theme-selector {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  text-align: left;
-}
-
-.theme-label {
-  font-weight: 600;
-  color: #666;
-  margin-bottom: 8px;
-}
-
-.theme-option {
-  padding: 12px 16px;
-  border-radius: 8px;
-  color: white;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s;
-  border: 2px solid transparent;
-}
-
-.theme-option:hover {
-  transform: scale(1.02);
-}
-
-.theme-option.active {
-  border-color: white;
-  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.3);
-}
-
 .join-btn {
   padding: 16px 32px;
-  background: var(--primary-gradient);
+  background: var(--primary-color);
   color: white;
   border: none;
   border-radius: 12px;
@@ -975,6 +953,19 @@ body {
   display: flex;
   flex-direction: column;
   box-shadow: 2px 0 10px rgba(0, 0, 0, 0.02);
+  transition: width 0.3s ease;
+}
+
+.sidebar.collapsed {
+  width: 60px;
+}
+
+.sidebar.collapsed .user-info-mini {
+  justify-content: center;
+}
+
+.sidebar.collapsed .mini-avatar {
+  margin: 0;
 }
 
 .sidebar-header {
@@ -985,17 +976,44 @@ body {
   align-items: center;
 }
 
+.header-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.collapse-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.04);
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.collapse-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+  transform: scale(1.05);
+}
+
 .user-info-mini {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex: 1;
+  min-width: 0;
 }
 
 .mini-avatar {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: var(--primary-gradient);
+  background: var(--primary-color);
   color: white;
   display: flex;
   align-items: center;
@@ -1005,6 +1023,12 @@ body {
   background-size: cover;
   background-position: center;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.avatar-text {
+  z-index: 1;
 }
 
 .user-info-mini h2 {
@@ -1045,17 +1069,14 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(102, 126, 234, 0.03);
+  background: rgba(102, 126, 234, 0.05);
   border-bottom: 1px solid rgba(0, 0, 0, 0.04);
 }
 
 .count {
   font-size: 24px;
   font-weight: 700;
-  background: var(--primary-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--primary-color);
 }
 
 .label {
@@ -1087,7 +1108,7 @@ body {
 }
 
 .user-item.active {
-  background: var(--primary-gradient);
+  background: var(--primary-color);
   color: white;
   box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
 }
@@ -1096,7 +1117,7 @@ body {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: var(--primary-gradient);
+  background: var(--primary-color);
   color: white;
   display: flex;
   align-items: center;
@@ -1108,6 +1129,11 @@ body {
   background-size: cover;
   background-position: center;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.user-avatar .avatar-text {
+  z-index: 1;
 }
 
 .user-item.active .user-avatar {
@@ -1199,7 +1225,7 @@ body {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: var(--primary-gradient);
+  background: var(--primary-color);
   color: white;
   display: flex;
   align-items: center;
@@ -1210,6 +1236,11 @@ body {
   margin: 0 12px;
   background-size: cover;
   background-position: center;
+  overflow: hidden;
+}
+
+.message-avatar .avatar-text {
+  z-index: 1;
 }
 
 .message-content {
@@ -1259,7 +1290,7 @@ body {
 }
 
 .message.my-message .message-bubble {
-  background: var(--primary-gradient);
+  background: var(--primary-color);
   color: white;
   border-radius: 20px 20px 4px 20px;
 }
@@ -1406,7 +1437,7 @@ body {
 
 .progress-bar {
   height: 100%;
-  background: var(--primary-gradient);
+  background: var(--primary-color);
   border-radius: 3px;
   transition: width 0.2s ease;
 }
@@ -1496,7 +1527,7 @@ body {
 
 .send-btn {
   padding: 12px 24px;
-  background: var(--primary-gradient);
+  background: var(--primary-color);
   color: white;
   border: none;
   border-radius: 20px;
@@ -1622,7 +1653,7 @@ body {
 .upload-btn {
   display: block;
   padding: 12px 24px;
-  background: var(--primary-gradient);
+  background: var(--primary-color);
   color: white;
   border-radius: 8px;
   text-align: center;
@@ -1639,72 +1670,42 @@ body {
   display: none;
 }
 
-.theme-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+.settings-description {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 12px;
+  word-break: break-all;
+  background: rgba(102, 126, 234, 0.05);
+  padding: 8px 12px;
+  border-radius: 6px;
 }
 
-.theme-card {
-  padding: 20px;
-  border-radius: 12px;
+.reset-btn {
+  display: block;
+  padding: 10px 20px;
+  background: #ff4757;
   color: white;
-  font-weight: 500;
+  border: none;
+  border-radius: 8px;
+  text-align: center;
   cursor: pointer;
   transition: all 0.3s;
-  text-align: center;
-  border: 3px solid transparent;
-}
-
-.theme-card:hover {
-  transform: scale(1.05);
-}
-
-.theme-card.active {
-  border-color: white;
-  box-shadow: 0 0 0 5px rgba(0, 0, 0, 0.3);
-}
-
-.theme-name {
   font-size: 14px;
+  font-weight: 500;
+}
+
+.reset-btn:hover {
+  background: #ff3344;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(255, 71, 87, 0.3);
 }
 
 @media (max-width: 768px) {
   .sidebar {
     width: 280px;
   }
-
   .message-content {
     max-width: 80%;
-  }
-
-  .theme-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 480px) {
-  .sidebar {
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    z-index: 100;
-    transform: translateX(-100%);
-    transition: transform 0.3s;
-  }
-
-  .sidebar.open {
-    transform: translateX(0);
-  }
-
-  .login-box {
-    padding: 32px;
-    min-width: 300px;
-  }
-
-  .theme-grid {
-    grid-template-columns: 1fr;
   }
 }
 </style>

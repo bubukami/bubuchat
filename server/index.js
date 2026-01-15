@@ -35,7 +35,10 @@ const io = new Server(httpServer, {
   cors: {
     origin: "*",
     methods: ["GET", "POST"],
+    credentials: true,
   },
+  allowEIO3: true,
+  transports: ["websocket", "polling"],
 });
 
 // 静态文件服务

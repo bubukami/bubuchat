@@ -1,0 +1,47 @@
+[
+  {
+    "id": 1768451319752,
+    "userId": "user_1768451316449_d32v2hz8q",
+    "username": "布布",
+    "avatar": "",
+    "content": "你好",
+    "timestamp": "2026-01-15T04:28:39.752Z",
+    "type": "text"
+  },
+  {
+    "id": 1768451625235,
+    "userId": "user_1768451616999_oht6e5igi",
+    "username": "布布",
+    "avatar": "",
+    "content": "你好",
+    "timestamp": "2026-01-15T04:33:45.235Z",
+    "type": "text"
+  },
+  {
+    "id": 1768451799458,
+    "userId": "user_1768451795673_29cdx4ch9",
+    "username": "布布",
+    "avatar": "",
+    "content": "你好",
+    "timestamp": "2026-01-15T04:36:39.458Z",
+    "type": "text"
+  },
+  {
+    "id": 1768451809744,
+    "userId": "user_1768451795673_29cdx4ch9",
+    "username": "布布",
+    "avatar": "",
+    "content": "你好",
+    "timestamp": "2026-01-15T04:36:49.744Z",
+    "type": "text"
+  },
+  {
+    "id": 1768451827602,
+    "userId": "user_1768451795673_29cdx4ch9",
+    "username": "石头",
+    "avatar": "",
+    "content": "你好",
+    "timestamp": "2026-01-15T04:37:07.602Z",
+    "type": "text"
+  }
+]
