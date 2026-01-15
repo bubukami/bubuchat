@@ -8,6 +8,8 @@
     "dev": "node index.js"
   },
   "dependencies": {
+    "express": "^5.2.1",
+    "multer": "^2.0.2",
     "socket.io": "^4.8.3"
   }
 }

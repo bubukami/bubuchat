@@ -104,28 +104,88 @@
       </div>
 
       <div class="chat-area">
-        <div class="messages" ref="messagesContainer">
-          <div
-            v-for="message in messages"
-            :key="message.id"
-            class="message"
-            :class="{ 'my-message': message.userId === myUserId }"
-          >
+        <div
+          class="messages"
+          ref="messagesContainer"
+          @scroll="handleMessagesScroll"
+        >
+          <!-- 加载更多按钮 -->
+          <div v-if="showLoadMore" class="load-more-container">
+            <button @click="loadMoreMessages" class="load-more-btn">
+              加载更多消息
+            </button>
+          </div>
+
+          <div v-if="messages.length > 0">
             <div
-              class="message-avatar"
-              :style="{ backgroundImage: message.avatar }"
+              v-for="message in displayedMessages"
+              :key="message.id"
+              class="message"
+              :class="{ 'my-message': message.userId === myUserId }"
             >
-              {{ message.username.charAt(0).toUpperCase() }}
-            </div>
-            <div class="message-content">
-              <div class="message-meta">
-                <span class="message-username">{{ message.username }}</span>
-                <span class="message-time">{{
-                  formatTime(message.timestamp)
-                }}</span>
+              <div
+                class="message-avatar"
+                :style="{ backgroundImage: message.avatar }"
+              >
+                {{ message.username.charAt(0).toUpperCase() }}
               </div>
-              <div class="message-bubble">{{ message.content }}</div>
+              <div class="message-content">
+                <div class="message-meta">
+                  <span class="message-username">{{ message.username }}</span>
+                  <span class="message-time">{{
+                    formatTime(message.timestamp)
+                  }}</span>
+                </div>
+                <div class="message-bubble">
+                  <!-- 文本消息 -->
+                  <div v-if="message.type === 'text' || !message.type">
+                    {{ message.content }}
+                  </div>
+                  <!-- 图片消息 -->
+                  <div
+                    v-else-if="message.type === 'image'"
+                    class="image-message"
+                  >
+                    <a
+                      :href="message.content"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <img
+                        :src="message.content"
+                        :alt="message.filename"
+                        class="message-image"
+                        loading="lazy"
+                      />
+                    </a>
+                    <div v-if="message.filename" class="message-filename">
+                      {{ message.filename }}
+                    </div>
+                  </div>
+                  <!-- 文件消息 -->
+                  <div v-else-if="message.type === 'file'" class="file-message">
+                    <a
+                      :href="message.content"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      download
+                    >
+                      <div class="file-icon">📄</div>
+                      <div class="file-info">
+                        <div class="file-name">{{ message.filename }}</div>
+                        <div class="file-size">
+                          {{ formatFileSize(message.filesize) }}
+                        </div>
+                      </div>
+                      <div class="file-download">↓</div>
+                    </a>
+                  </div>
+                </div>
+              </div>
             </div>
+          </div>
+          <div v-else class="no-messages">
+            <p>还没有消息，开始聊天吧！</p>
           </div>
         </div>
 
@@ -147,6 +207,17 @@
               >
                 😊
               </button>
+              <label for="fileInput" class="file-btn" title="上传文件">
+                📎
+              </label>
+              <input
+                id="fileInput"
+                type="file"
+                accept="*/*"
+                @change="handleFileUpload"
+                ref="fileInput"
+                style="display: none"
+              />
             </div>
             <button
               type="submit"
@@ -156,6 +227,17 @@
               发送
             </button>
           </form>
+
+          <!-- 上传进度显示 -->
+          <div v-if="isUploading" class="upload-progress-container">
+            <div class="progress-bar-wrapper">
+              <div
+                class="progress-bar"
+                :style="{ width: uploadProgress + '%' }"
+              ></div>
+            </div>
+            <div class="progress-text">{{ uploadProgress }}%</div>
+          </div>
 
           <div v-if="showEmojiPicker" class="emoji-picker">
             <span
@@ -243,6 +325,13 @@ const showSettings = ref(false);
 const showEmojiPicker = ref(false);
 const customBackground = ref("");
 const selectedTheme = ref("purple");
+const uploadProgress = ref(0);
+const isUploading = ref(false);
+
+// 消息分页相关变量
+const messagesPerPage = ref(50); // 每页显示的消息数量
+const displayedMessages = ref([]); // 当前显示的消息
+const showLoadMore = ref(false); // 是否显示加载更多按钮
 
 const themes = [
   {
@@ -368,6 +457,11 @@ function joinChat() {
     joined.value = true;
     users.value = data.users || [];
     messages.value = data.messages || [];
+
+    // 初始化显示的消息，默认显示最新的50条
+    displayedMessages.value = messages.value.slice(-messagesPerPage.value);
+    showLoadMore.value = messages.value.length > messagesPerPage.value;
+
     nextTick(() => {
       scrollToBottom();
     });
@@ -385,8 +479,22 @@ function joinChat() {
   socket.on("new_message", (data) => {
     console.log("收到消息", data);
     messages.value.push(data);
+
+    // 如果当前显示的是最新消息（滚动到底部），则添加到显示列表
+    const container = messagesContainer.value;
+    const isAtBottom =
+      container &&
+      container.scrollTop + container.clientHeight >=
+        container.scrollHeight - 10;
+
+    if (isAtBottom || displayedMessages.value.length < messagesPerPage.value) {
+      displayedMessages.value.push(data);
+    }
+
     nextTick(() => {
-      scrollToBottom();
+      if (isAtBottom) {
+        scrollToBottom();
+      }
     });
   });
 
@@ -454,6 +562,78 @@ function insertEmoji(emoji) {
   showEmojiPicker.value = false;
 }
 
+async function handleFileUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  // 限制文件大小（5MB）
+  const MAX_FILE_SIZE = 5 * 1024 * 1024;
+  if (file.size > MAX_FILE_SIZE) {
+    alert("文件大小不能超过5MB");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  try {
+    // 上传文件到服务器
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || "";
+    const uploadUrl = socketUrl ? `${socketUrl}/upload` : "/upload";
+
+    // 开始上传，显示进度
+    isUploading.value = true;
+    uploadProgress.value = 0;
+
+    // 创建XMLHttpRequest以跟踪上传进度
+    const xhr = new XMLHttpRequest();
+
+    // 监听上传进度
+    xhr.upload.addEventListener("progress", (e) => {
+      if (e.lengthComputable) {
+        uploadProgress.value = Math.round((e.loaded / e.total) * 100);
+      }
+    });
+
+    // 发送请求
+    const response = await new Promise((resolve, reject) => {
+      xhr.open("POST", uploadUrl);
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(JSON.parse(xhr.responseText));
+        } else {
+          reject(new Error(`HTTP错误! 状态: ${xhr.status}`));
+        }
+      };
+      xhr.onerror = () => reject(new Error("网络错误"));
+      xhr.send(formData);
+    });
+
+    if (response.success) {
+      // 发送文件消息
+      socket.emit("send_message", {
+        userId: myUserId.value,
+        username: username.value,
+        avatar: myAvatar.value,
+        content: response.url,
+        type: file.type.startsWith("image/") ? "image" : "file",
+        filename: file.name,
+        filesize: file.size,
+      });
+    }
+  } catch (error) {
+    console.error("文件上传失败:", error);
+    alert("文件上传失败，请重试");
+  } finally {
+    // 上传完成，重置状态
+    isUploading.value = false;
+    uploadProgress.value = 0;
+  }
+
+  // 重置文件输入
+  event.target.value = "";
+}
+
 function scrollToBottom() {
   if (messagesContainer.value) {
     messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
@@ -463,6 +643,45 @@ function scrollToBottom() {
 function formatTime(timestamp) {
   const date = new Date(timestamp);
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function formatFileSize(bytes) {
+  if (!bytes) return "0 Bytes";
+  const k = 1024;
+  const sizes = ["Bytes", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+}
+
+// 更新显示的消息
+function updateDisplayedMessages() {
+  const totalMessages = messages.value.length;
+  const startIndex = Math.max(
+    0,
+    totalMessages - displayedMessages.value.length - messagesPerPage.value
+  );
+  const endIndex = totalMessages - displayedMessages.value.length;
+
+  if (startIndex < endIndex) {
+    const newMessages = messages.value.slice(startIndex, endIndex).reverse();
+    displayedMessages.value = [...newMessages, ...displayedMessages.value];
+  }
+
+  // 检查是否还有更多消息可以加载
+  showLoadMore.value = displayedMessages.value.length < messages.value.length;
+}
+
+// 加载更多消息
+function loadMoreMessages() {
+  updateDisplayedMessages();
+}
+
+// 处理消息容器滚动事件
+function handleMessagesScroll() {
+  const container = messagesContainer.value;
+  if (container && container.scrollTop === 0 && showLoadMore.value) {
+    loadMoreMessages();
+  }
 }
 
 function generateUserId() {
@@ -533,12 +752,13 @@ body {
 
 .login-box {
   background: white;
-  padding: 48px;
-  border-radius: 20px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  padding: 40px 32px;
+  border-radius: 24px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
   text-align: center;
-  min-width: 380px;
+  min-width: 360px;
   animation: slideUp 0.5s ease-out;
+  backdrop-filter: blur(10px);
 }
 
 @keyframes slideUp {
@@ -748,17 +968,18 @@ body {
 }
 
 .sidebar {
-  width: 320px;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-right: 1px solid rgba(0, 0, 0, 0.1);
+  width: 280px;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(12px);
+  border-right: 1px solid rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.02);
 }
 
 .sidebar-header {
-  padding: 24px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 20px 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -767,101 +988,10 @@ body {
 .user-info-mini {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .mini-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: var(--primary-gradient);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 20px;
-  background-size: cover;
-  background-position: center;
-}
-
-.user-info-mini h2 {
-  font-size: 18px;
-  color: var(--text-color);
-  margin: 0;
-}
-
-.user-id {
-  font-size: 12px;
-  color: #999;
-  display: block;
-}
-
-.settings-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(0, 0, 0, 0.05);
-  font-size: 20px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.settings-btn:hover {
-  background: rgba(0, 0, 0, 0.1);
-  transform: rotate(90deg);
-}
-
-.online-count {
-  padding: 16px 24px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(102, 126, 234, 0.05);
-}
-
-.count {
-  font-size: 32px;
-  font-weight: bold;
-  background: var(--primary-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.label {
-  color: #666;
-  font-size: 14px;
-}
-
-.user-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px;
-}
-
-.user-item {
-  display: flex;
-  align-items: center;
-  padding: 12px;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.3s;
-  margin-bottom: 8px;
-}
-
-.user-item:hover {
-  background: rgba(102, 126, 234, 0.05);
-  transform: translateX(5px);
-}
-
-.user-item.active {
-  background: var(--primary-gradient);
-  color: white;
-}
-
-.user-avatar {
   width: 44px;
   height: 44px;
   border-radius: 50%;
@@ -870,12 +1000,118 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: bold;
+  font-weight: 600;
+  font-size: 18px;
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.user-info-mini h2 {
   font-size: 16px;
-  margin-right: 12px;
+  color: var(--text-color);
+  margin: 0;
+  font-weight: 600;
+}
+
+.user-id {
+  font-size: 11px;
+  color: #777;
+  display: block;
+  opacity: 0.7;
+}
+
+.settings-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.04);
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+  transform: rotate(90deg);
+}
+
+.online-count {
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(102, 126, 234, 0.03);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.count {
+  font-size: 24px;
+  font-weight: 700;
+  background: var(--primary-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.label {
+  color: #666;
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+.user-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.user-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 4px;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.user-item:hover {
+  background: rgba(102, 126, 234, 0.06);
+  transform: translateX(4px);
+}
+
+.user-item.active {
+  background: var(--primary-gradient);
+  color: white;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+}
+
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--primary-gradient);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 14px;
+  margin-right: 10px;
   flex-shrink: 0;
   background-size: cover;
   background-position: center;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.user-item.active .user-avatar {
+  box-shadow: 0 2px 8px rgba(255, 255, 255, 0.2);
 }
 
 .user-details {
@@ -889,13 +1125,37 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 14px;
 }
 
 .typing-indicator {
-  font-size: 12px;
-  color: #999;
+  font-size: 11px;
+  color: #666;
   display: block;
   margin-top: 2px;
+  opacity: 0.7;
+}
+
+.user-item.active .typing-indicator {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.user-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.user-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 2px;
+}
+
+.user-list::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 2px;
+}
+
+.user-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.15);
 }
 
 .chat-area {
@@ -953,112 +1213,309 @@ body {
 }
 
 .message-content {
-  max-width: 65%;
+  max-width: 70%;
 }
 
 .message-meta {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
-  margin-bottom: 6px;
-  gap: 12px;
+  margin-bottom: 4px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.message.my-message .message-meta {
+  justify-content: flex-end;
 }
 
 .message-username {
   font-weight: 600;
   color: var(--text-color);
+  font-size: 13px;
+  opacity: 0.8;
 }
 
 .message-time {
-  font-size: 11px;
-  color: #999;
+  font-size: 10px;
+  color: #888;
+  opacity: 0.7;
 }
 
 .message-bubble {
-  padding: 14px 18px;
+  padding: 12px 16px;
   background: var(--bubble-bg);
-  border-radius: 18px;
+  border-radius: 20px;
   color: var(--bubble-text);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   word-wrap: break-word;
   line-height: 1.5;
+  transition: all 0.2s ease;
+}
+
+.message-bubble:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
 }
 
 .message.my-message .message-bubble {
   background: var(--primary-gradient);
   color: white;
-  border-radius: 18px 18px 4px 18px;
+  border-radius: 20px 20px 4px 20px;
+}
+
+/* 图片消息样式 */
+.image-message {
+  text-align: center;
+}
+
+.message-image {
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.message-image:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.message-filename {
+  margin-top: 8px;
+  font-size: 12px;
+  opacity: 0.8;
+  color: inherit;
+  word-break: break-all;
+}
+
+/* 文件消息样式 */
+.file-message {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.message.my-message .file-message {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.file-message:hover {
+  background: rgba(255, 255, 255, 1);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+}
+
+.message.my-message .file-message:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.file-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.file-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.file-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: inherit;
+  word-break: break-all;
+}
+
+.file-size {
+  font-size: 11px;
+  opacity: 0.7;
+  color: inherit;
+}
+
+.file-download {
+  font-size: 16px;
+  color: inherit;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.file-message:hover .file-download {
+  opacity: 1;
+}
+
+.file-message a {
+  color: inherit;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+/* 加载更多按钮样式 */
+.load-more-container {
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+}
+
+.load-more-btn {
+  padding: 8px 16px;
+  background: rgba(102, 126, 234, 0.1);
+  border: 1px solid rgba(102, 126, 234, 0.3);
+  border-radius: 20px;
+  color: var(--primary-color);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.load-more-btn:hover {
+  background: rgba(102, 126, 234, 0.15);
+  border-color: var(--primary-color);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+}
+
+/* 上传进度指示器样式 */
+.upload-progress-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: rgba(102, 126, 234, 0.1);
+  border-radius: 12px;
+  margin-top: 8px;
+}
+
+.progress-bar-wrapper {
+  flex: 1;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: var(--primary-gradient);
+  border-radius: 3px;
+  transition: width 0.2s ease;
+}
+
+.progress-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--primary-color);
+  min-width: 36px;
+  text-align: right;
 }
 
 .input-area {
-  padding: 20px 24px;
-  background: white;
-  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.95);
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(10px);
 }
 
 .input-area form {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .input-wrapper {
   display: flex;
-  gap: 12px;
-  align-items: center;
+  gap: 8px;
+  align-items: flex-end;
 }
 
 .message-input {
   flex: 1;
-  padding: 14px 18px;
-  border: 2px solid #e0e0e0;
-  border-radius: 12px;
-  font-size: 15px;
+  padding: 12px 16px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 20px;
+  font-size: 14px;
   outline: none;
-  transition: all 0.3s;
+  transition: all 0.2s ease;
+  background: rgba(255, 255, 255, 0.8);
 }
 
 .message-input:focus {
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.15);
+  background: white;
 }
 
 .emoji-btn {
-  width: 48px;
-  height: 48px;
-  border: 2px solid #e0e0e0;
-  border-radius: 12px;
-  background: white;
-  font-size: 24px;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.8);
+  font-size: 20px;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
 .emoji-btn:hover {
   border-color: var(--primary-color);
+  background: white;
+  transform: scale(1.05);
+}
+
+.file-btn {
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.8);
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.file-btn:hover {
+  border-color: var(--primary-color);
+  background: white;
   transform: scale(1.05);
 }
 
 .send-btn {
-  padding: 14px 28px;
+  padding: 12px 24px;
   background: var(--primary-gradient);
   color: white;
   border: none;
-  border-radius: 12px;
-  font-size: 15px;
-  font-weight: 600;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
 .send-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25);
 }
 
 .send-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
+  transform: none;
 }
 
 .emoji-picker {
