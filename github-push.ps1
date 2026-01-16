@@ -23,6 +23,11 @@ function Show-Info {
     Write-Host "[INFO] $Message" -ForegroundColor Cyan
 }
 
+function Show-Warning {
+    param([string]$Message)
+    Write-Host "[WARNING] $Message" -ForegroundColor Yellow
+}
+
 function Show-Success {
     param([string]$Message)
     Write-Host "[SUCCESS] $Message" -ForegroundColor Green
@@ -51,6 +56,12 @@ $serverGitIgnore = "$PROJECT_DIR\server\.gitignore"
 Set-Content -Path $serverGitIgnore -Value "# No ignore rules - all files should be uploaded`n" -Force
 
 Show-Info ".gitignore files updated successfully"
+
+# Explicitly add .gitignore files to ensure they're included in the commit
+git add "$rootGitIgnore" "$clientGitIgnore" "$serverGitIgnore"
+if ($LASTEXITCODE -ne 0) {
+    Show-Warning "Failed to add .gitignore files, but continuing..."
+}
 
 # Check git status
 Show-Info "Checking initial git status..."
