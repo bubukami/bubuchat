@@ -70,16 +70,24 @@ if ([string]::IsNullOrEmpty($CommitMessage)) {
     }
 }
 
-# Add all changes
-git add .
-if ($LASTEXITCODE -ne 0) {
-    Show-Error "Failed to add changes"
-}
+# Check if there are any changes to commit
+git diff --quiet HEAD
+$hasChanges = $LASTEXITCODE -ne 0
 
-# Commit changes
-git commit -m "$CommitMessage"
-if ($LASTEXITCODE -ne 0) {
-    Show-Error "Failed to commit changes"
+if ($hasChanges) {
+    # Add all changes
+    Show-Info "Adding all changes..."
+    git add .
+    if ($LASTEXITCODE -ne 0) {
+        Show-Error "Failed to add changes"
+    }
+    
+    # Commit changes
+    Show-Info "Committing changes..."
+    git commit -m "$CommitMessage"
+    if ($LASTEXITCODE -ne 0) {
+        Show-Error "Failed to commit changes"
+    }
 }
 
 # Create and push tag if valid version number provided
@@ -91,13 +99,14 @@ if ($IsValidVersion) {
     }
     
     Show-Info "Pushing git tag to GitHub..."
-    git push origin $VersionNumber
+    git push origin $VersionNumber --force
     if ($LASTEXITCODE -ne 0) {
         Show-Error "Failed to push git tag"
     }
 }
 
 # Push changes with force to override remote changes
+Show-Info "Pushing changes to GitHub..."
 git push origin main --force
 if ($LASTEXITCODE -ne 0) {
     Show-Error "Failed to push changes"
