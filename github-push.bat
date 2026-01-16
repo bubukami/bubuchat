@@ -1,13 +1,13 @@
 @echo off
-:: GitHub Push Update Script Launcher
+:: GitHub Project Upload Script Launcher
 :: For Windows Server
 
 cls
-========================================
-echo     GitHub Push Update Script
+echo ========================================
+echo     GitHub Project Upload Script
 echo     Project: bubuchat
 echo     Repo: git@github.com:bubukami/bubuchat.git
-========================================
+echo ========================================
 echo.
 echo Starting PowerShell script now...
 echo.
