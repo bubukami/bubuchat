@@ -97,8 +97,8 @@ if ($IsValidVersion) {
     }
 }
 
-# Push changes
-git push origin main
+# Push changes with force to override remote changes
+git push origin main --force
 if ($LASTEXITCODE -ne 0) {
     Show-Error "Failed to push changes"
 }
