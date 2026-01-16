@@ -1,7 +1,7 @@
 #!/usr/bin/env pwsh
 
 # GitHub Push Update Script with Version Control
-# Features: Commit and push changes to GitHub with custom version number, support SSH authentication
+# Features: Upload entire project to GitHub with custom version number, support SSH authentication
 
 # Configuration
 $GITHUB_REPO = "git@github.com:bubukami/bubuchat.git"
@@ -28,7 +28,7 @@ function Show-Success {
 }
 
 # Main script
-Show-Info "Starting GitHub Push Script with Version Control..."
+Show-Info "Starting GitHub Project Upload Script with Version Control..."
 Show-Info "Project Directory: $PROJECT_DIR"
 
 # Change to project directory
@@ -66,32 +66,38 @@ if ([string]::IsNullOrEmpty($CommitMessage)) {
         $CommitMessage = "Release version ${VersionNumber}: $currentDate"
     } else {
         $currentDateTime = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
-        $CommitMessage = "Update: $currentDateTime"
+        $CommitMessage = "Upload complete project: $currentDateTime"
     }
 }
 
-# Check if there are any changes to commit
-git diff --quiet HEAD
-$hasChanges = $LASTEXITCODE -ne 0
+# Always add all files (including new/untracked files)
+Show-Info "Adding all files (including new/untracked files)..."
+git add .
+if ($LASTEXITCODE -ne 0) {
+    Show-Error "Failed to add files"
+}
 
-if ($hasChanges) {
-    # Add all changes
-    Show-Info "Adding all changes..."
-    git add .
-    if ($LASTEXITCODE -ne 0) {
-        Show-Error "Failed to add changes"
-    }
-    
+# Check if there are any changes to commit after adding all files
+git diff --cached --quiet
+$hasStagedChanges = $LASTEXITCODE -ne 0
+
+if ($hasStagedChanges) {
     # Commit changes
     Show-Info "Committing changes..."
     git commit -m "$CommitMessage"
     if ($LASTEXITCODE -ne 0) {
         Show-Error "Failed to commit changes"
     }
+} else {
+    Show-Info "No changes to commit. Working tree is clean."
+    Show-Info "Will still push to ensure remote matches local..."
 }
 
 # Create and push tag if valid version number provided
 if ($IsValidVersion) {
+    # Delete existing tag if it exists locally
+    git tag -d $VersionNumber 2>$null
+    
     Show-Info "Creating git tag for version $VersionNumber..."
     git tag $VersionNumber
     if ($LASTEXITCODE -ne 0) {
@@ -106,17 +112,16 @@ if ($IsValidVersion) {
 }
 
 # Push changes with force to override remote changes
-Show-Info "Pushing changes to GitHub..."
+Show-Info "Pushing entire project to GitHub with force..."
 git push origin main --force
 if ($LASTEXITCODE -ne 0) {
     Show-Error "Failed to push changes"
 }
 
-Show-Success "All changes have been pushed to GitHub successfully!"
+Show-Success "Entire project has been uploaded to GitHub successfully!"
 Show-Success "Commit message: $CommitMessage"
 if ($IsValidVersion) {
-    Show-Success "Version tag created: $VersionNumber"
-    Show-Success "Version tag pushed to GitHub"
+    Show-Success "Version tag created and pushed: $VersionNumber"
 }
 
 # Pause to view results
