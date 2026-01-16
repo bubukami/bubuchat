@@ -140,7 +140,8 @@ io.on("connection", (socket) => {
   });
 
   socket.on("send_message", (data) => {
-    const { userId, username, avatar, content, type, filename, filesize } = data;
+    const { userId, username, avatar, content, type, filename, filesize } =
+      data;
     const user = users.get(socket.id);
 
     if (!user) return;
@@ -161,13 +162,15 @@ io.on("connection", (socket) => {
     saveMessages(); // 保存消息到文件系统
 
     io.emit("new_message", message);
-    
+
     // 根据消息类型输出不同日志
     let logMessage = `消息: ${username}: `;
     if (type === "image") {
       logMessage += `[图片] ${filename || "未命名图片"}`;
     } else if (type === "file") {
-      logMessage += `[文件] ${filename || "未命名文件"} (${filesize || 0} bytes)`;
+      logMessage += `[文件] ${filename || "未命名文件"} (${
+        filesize || 0
+      } bytes)`;
     } else {
       logMessage += content;
     }
@@ -208,7 +211,9 @@ io.on("connection", (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => {
+// 监听所有接口，而不仅仅是localhost
+httpServer.listen(PORT, "0.0.0.0", () => {
   console.log(`聊天服务器运行在端口 ${PORT}`);
-  console.log(`访问 http://localhost:${PORT} 查看状态`);
+  console.log(`访问 http://0.0.0.0:${PORT} 查看状态`);
+  console.log(`远程访问地址: http://159.75.208.141:${PORT}`);
 });
