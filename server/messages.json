@@ -43,5 +43,49 @@
     "content": "你好",
     "timestamp": "2026-01-15T04:37:07.602Z",
     "type": "text"
+  },
+  {
+    "id": 1768573758446,
+    "userId": "user_1768451795673_29cdx4ch9",
+    "username": "布布",
+    "avatar": "",
+    "content": "测试",
+    "timestamp": "2026-01-16T14:29:18.446Z",
+    "type": "text",
+    "filename": "",
+    "filesize": 0
+  },
+  {
+    "id": 1768573907642,
+    "userId": "user_1768451795673_29cdx4ch9",
+    "username": "布布",
+    "avatar": "",
+    "content": "111",
+    "timestamp": "2026-01-16T14:31:47.642Z",
+    "type": "text",
+    "filename": "",
+    "filesize": 0
+  },
+  {
+    "id": 1768573912870,
+    "userId": "user_1768451795673_29cdx4ch9",
+    "username": "布布",
+    "avatar": "",
+    "content": "http://localhost:3000/uploads/file-1768573912860-803440572.png",
+    "timestamp": "2026-01-16T14:31:52.870Z",
+    "type": "image",
+    "filename": "联想截图_20260114164050.png",
+    "filesize": 95116
+  },
+  {
+    "id": 1768575092527,
+    "userId": "user_1768451795673_29cdx4ch9",
+    "username": "布布",
+    "avatar": "",
+    "content": "http://localhost:3000/uploads/file-1768575092519-224192252.png",
+    "timestamp": "2026-01-16T14:51:32.527Z",
+    "type": "image",
+    "filename": "联想截图_20260112172910.png",
+    "filesize": 266670
   }
 ]

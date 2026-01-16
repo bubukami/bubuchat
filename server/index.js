@@ -140,7 +140,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("send_message", (data) => {
-    const { userId, username, avatar, content } = data;
+    const { userId, username, avatar, content, type, filename, filesize } = data;
     const user = users.get(socket.id);
 
     if (!user) return;
@@ -152,14 +152,26 @@ io.on("connection", (socket) => {
       avatar: avatar || "",
       content,
       timestamp: new Date().toISOString(),
-      type: "text", // 添加消息类型，为后续媒体文件传输做准备
+      type: type || "text",
+      filename: filename || "",
+      filesize: filesize || 0,
     };
 
     messages.push(message);
     saveMessages(); // 保存消息到文件系统
 
     io.emit("new_message", message);
-    console.log(`消息: ${username}: ${content}`);
+    
+    // 根据消息类型输出不同日志
+    let logMessage = `消息: ${username}: `;
+    if (type === "image") {
+      logMessage += `[图片] ${filename || "未命名图片"}`;
+    } else if (type === "file") {
+      logMessage += `[文件] ${filename || "未命名文件"} (${filesize || 0} bytes)`;
+    } else {
+      logMessage += content;
+    }
+    console.log(logMessage);
   });
 
   socket.on("typing", (data) => {
