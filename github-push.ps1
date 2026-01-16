@@ -90,7 +90,26 @@ if ([string]::IsNullOrEmpty($CommitMessage)) {
 
 # Add all files explicitly, including untracked files and directories
 Show-Info "Adding ALL files from bubuchat folder..."
-# Use -A flag to ensure all files are added, including deleted files
+
+# Handle empty directories by adding .gitkeep files
+Show-Info "Checking for empty directories and adding .gitkeep files..."
+$emptyDirs = Get-ChildItem -Path $PROJECT_DIR -Directory -Recurse | Where-Object {
+    $dir = $_
+    -not (Get-ChildItem -Path $dir.FullName -Force)
+}
+
+if ($emptyDirs.Count -gt 0) {
+    Show-Info "Found $($emptyDirs.Count) empty directories. Adding .gitkeep files..."
+    foreach ($dir in $emptyDirs) {
+        $gitkeepPath = Join-Path -Path $dir.FullName -ChildPath ".gitkeep"
+        New-Item -Path $gitkeepPath -ItemType File -Force | Out-Null
+        Show-Info "Added .gitkeep to: $($dir.FullName)"
+    }
+} else {
+    Show-Info "No empty directories found."
+}
+
+# Use -A flag to ensure all files are added, including deleted files and newly added .gitkeep files
 git add -A
 if ($LASTEXITCODE -ne 0) {
     Show-Error "Failed to add files. Please check if you have proper permissions."
