@@ -165,12 +165,11 @@ if ($IsValidVersion) {
 Show-Info "Pushing ALL files to GitHub with force..."
 # Use --no-verify to bypass any hooks that might prevent pushing
 # Use --force-with-lease for safer force push
-# Use --all to push all branches
-git push origin main --force-with-lease --no-verify --all
+git push origin main --force-with-lease --no-verify
 if ($LASTEXITCODE -ne 0) {
     # If force-with-lease fails, try regular force
     Show-Info "Force-with-lease failed, trying regular force..."
-    git push origin main --force --no-verify --all
+    git push origin main --force --no-verify
     if ($LASTEXITCODE -ne 0) {
         Show-Error "Failed to push changes. Please check your SSH connection and permissions."
     }
